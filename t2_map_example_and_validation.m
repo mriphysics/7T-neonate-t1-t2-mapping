@@ -206,12 +206,17 @@ gg(5).Position = [0.31 0.5 www hhh];
 gg(4).Position = [0.61 0.5 www hhh];
 gg(2).Position = gg(2).Position + [0 0.02 0 0];
 
-% print -dpng -r300 phantom_validation_figure_dictionary_recon.png
+print -dpng -r300 outputs/SuppInfo_S4.png
 
 
 
 %% print out stats:
-fprintf(1,'3D SE: \t\tT2 = %2.1f\t±\t%2.1f ms\n',mean(t2fit3d(mask3d)),std(t2fit3d(mask3d)));
-fprintf(1,'2D exp.: \tT2 = %2.1f\t±\t%2.1f ms\n',mean(t2fit2d(mask2d)),std(t2fit2d(mask2d)));
-fprintf(1,'2D dict.: \tT2 = %2.1f\t±\t%2.1f ms\n',mean(t2mapd(mask2d)),std(t2mapd(mask2d)));
+
+%%% erode masks to get errors
+m3e = imerode(s0map3d(:,:,1)>500,strel('disk',3));
+m2e = imerode(mask2d,strel('disk',3));
+
+fprintf(1,'3D SE: \t\tT2 = %2.1f\t±\t%2.1f ms\n',mean(t2fit3d(m3e)),std(t2fit3d(m3e)));
+fprintf(1,'2D exp.: \tT2 = %2.1f\t±\t%2.1f ms\n',mean(t2fit2d(m2e)),std(t2fit2d(m2e)));
+fprintf(1,'2D dict.: \tT2 = %2.1f\t±\t%2.1f ms\n',mean(t2mapd(m2e)),std(t2mapd(m2e)));
 

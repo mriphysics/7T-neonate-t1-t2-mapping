@@ -191,6 +191,6 @@ gg(3).Position = [0.11 0.11 0.1 0.03]+[xs 0 0 0];
 
 gg(2).Position = [0.62 0.25 0.35 0.5];
 
-setpospap([ 880        1472         912         360])
+setpospap([ 100 100 912 360])
 
-% print -dpng -r300 t1_sphere_result.png
+print -dpng -r300 outputs/SuppInfo_S3.png

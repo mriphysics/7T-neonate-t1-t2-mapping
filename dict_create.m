@@ -185,7 +185,7 @@ ylim([600 3800])
 ll.EdgeColor = [1 1 1];
 ll.LineWidth = 2;
 
-set(gca,'FontSize',13)
+set(gca,'FontSize',16)
 title('Mean T_2 estimation error')
 axis xy
 xlabel('B_1^{rel}')
@@ -194,7 +194,7 @@ cc=colorbar;
 cc.Label.String = 'T_2 error (%)';
 
 setpospap([400 400 600 550])
-%  print -dpng -r300 t2dict_t1err.png
+print -dpng -r300 outputs/SuppInfo_S2.png
 
 %% Compare the low res and upsampled dictionaries
 %% Visualise the interpolated and original dictionaries
@@ -202,18 +202,21 @@ setpospap([400 400 600 550])
 figfp(3)
 nr = 3;
 nc = 2;
+te = [59 154 283];
 for ii = 1:3
     subplot(nr,nc,2*(ii-1)+1)
     imagesc(T2,b1fact,Sdict_fixT1(:,:,ii),[0 7000])
     xlabel('T_2 (ms)')
     ylabel('B_1^{rel}')
-    title(sprintf('Echo time #%d',ii))
+    title(sprintf('Echo time %d ms',te(ii)))
 
     subplot(nr,nc,2*(ii-1)+2)
     imagesc(T2hi,b1hi,Sdict_hi(:,:,ii),[0 7000])
     xlabel('T_2 (ms)')
     ylabel('B_1^{rel}')
-    title(sprintf('Echo time #%d',ii))
+    title(sprintf('Echo time %d ms',te(ii)))
 end
+colormap parula
 
 setpospap([400 80 550 720])
+print -dpng -r300 outputs/SuppInfo_S1.png
