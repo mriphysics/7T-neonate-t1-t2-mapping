@@ -9,7 +9,6 @@ load data/analysis_v2_1voxel.mat
 
 %% T1 maps
 
-
 sub_n = (1:length(pmas))';
 
 % Find indices of empty cells in t1dataie
@@ -81,7 +80,7 @@ spsjm('auto','rgap',0.15,'tgap',0.02,'gap',[0.0 0.02])
 
 setpospap([20         1100        540     750])
 
-print -dpng -r300 t1_data_complete_R1.png
+print -dpng -r300 outputs/t1_data_montage.png
 
 %% Now same again for epsilon
 
@@ -118,7 +117,7 @@ yl.FontSize = 20;
 spsjm('auto','rgap',0.15,'tgap',0.02,'gap',[0.0 0.02])
 
 setpospap([20         1100        540     750])
-print -dpng -r300 ie_data_complete_R1.png
+print -dpng -r300 outputs/ie_data_montage.png
 
 %% T2
 
@@ -183,7 +182,7 @@ spsjm('auto','rgap',0.1,'tgap',0.02,'gap',[0.0 0.02])
 
 setpospap([20         1100        590         750])
 
-print -dpng -r300 t2_data_complete_R1.png
+print -dpng -r300 outputs/t2_data_montage.png
 
 
 %% ROIS
@@ -264,4 +263,5 @@ spsjm('auto','rgap',0.05,'tgap',0.02,'gap',[0.0 0.02])
 setpospap([20         334        490     750])
 
 
- print -dpng -r300 rois_data_complete_R1.png
+print -dpng -r300 outputs/segmentation_montage.png
+
