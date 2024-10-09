@@ -1,17 +1,18 @@
 %%% ROI analysis for infant data. Load in ROI measurements for each infant,
 %%% over different tissue labels. Note that the data contains 61 infant
 %%% datasets but not all contain T1 and T2 mapping (so are empty) and it
-%%% also contains 13 tissue labels, though we plot only 8 of these.
+%%% also contains 13 tissue labels, though we only consider 8 of these.
 %%% 2024-10-08: Shaihan Malik & Aiman Mahmoud, King's College London
 
 %%% Load in mat file containing the data
 load data/analysis_v2_1voxel.mat
 
 %%% Define labels for the ROIs we are interested in
-newlabs = {'Cortical GM','White Matter','Lateral Ventricle','Cavum septum pellucidum','Brainstem','Cerebellum','Cerebellar Vermis','Basal Ganglia','Thalamus','Third Ventricle','Fourth Ventricle', 'CSF', 'PVFWM'};
-
+all_labs = {'Cortical GM','White Matter','Lateral Ventricle',...
+    'Cavum septum pellucidum','Brainstem','Cerebellum','Cerebellar Vermis','Basal Ganglia','Thalamus','Third Ventricle','Fourth Ventricle', 'CSF', 'PVFWM'};
 %%% These ROIs are to be displayed from the 13 labels included in segmentation
 roi_idx = [1,2,5,6,7,8,9,13];
+newlabs = all_labs(roi_idx);
 
 %%% Go through the T1 and T2 maps and save the average figures within each
 %%% of the ROIs indexed above
@@ -19,15 +20,22 @@ N = length(t1dataie); % 61 total subjects
 
 t1m_all = zeros([N 8]); % N subjects, 8 labels
 t2m_all = zeros([N 8]); 
-
+%%% fill the array with NaN - this is a label for missing data later
+t1m_all(:) = NaN;t2m_all(:) = NaN;
 for ii=1:N
     for jj=1:8
         ix = find(new_rois_t1{ii} == roi_idx(jj));
-        t1m_all(ii,jj) = median(t1dataie{ii}(ix));
+        tmp_t1 = t1dataie{ii}(ix);
+        % remove NaNs before taking averages
+        tmp_t1(isnan(tmp_t1)) = [];
+        t1m_all(ii,jj) = median(tmp_t1);
+        
+        % now look at T2
         if ~isempty(t2corrected{ii})
-            t2m_all(ii,jj) = median(t2corrected{ii}(ix));
-        else
-            t2m_all(ii,jj) = NaN;
+            ix = find(new_rois_t2{ii} == roi_idx(jj));
+            tmp_t2 = t2corrected{ii}(ix);
+            tmp_t2(isnan(tmp_t2)) = [];
+            t2m_all(ii,jj) = median(tmp_t2);
         end
     end
 end
@@ -36,10 +44,8 @@ end
 %%
 figfp(1)
 
-%%% The saved data contains both mean and median values in each ROI. Use
-%%% Median here because distributions are not normal.
-t1m = t1m_all;%t1median_ie;
-
+%%% Build samples for plotting. T1 first.
+t1m = t1m_all;
 % These 4 scans are not included in regression
 reject_subjects = [1 3 5 33];
 t1_rejection = reject_subjects;
@@ -60,7 +66,7 @@ pnas_outliers_t1 = pmas(t1_rejection)-gabs(t1_rejection);
 
 
 %%% Now the same thing but for T2
-t2m = t2m_all;%t2c_median; %%% Use median here
+t2m = t2m_all;
 
 %%% Remove the rejected ones from linear regression
 t2m(t2_rejection,:) = []; 
@@ -77,20 +83,15 @@ pmas_outliers_t2 = pmas(t2_rejection);
 pnas_outliers_t2 = pmas(t2_rejection)-gabs(t2_rejection);
 
 
-
-
+%%% ===================================
 %%% Perform regressions and create scatter plots all within this loop.
 
-
-%%% Perform two regression analyses - single and multiple linear regression
-
+%%% do two regression analyses - single and multiple linear regression
 lm_single = {};
 lm_multiple = {}; %<-- for linear models including PNA
 
 %%% params
 mrkrsz = 30; % scatter plot marker size
-
-
 %%% colormap for plotting - use COLORCET function    cmap = colorcet('L6');
 cmap = colorcet('L8');
 %%% stretch non-linear
@@ -105,16 +106,14 @@ pna_max = 14;
 out_color = [0 0.7 0];
 
 for jj=1:8 % loop over ROIs
-    ix = jj;%roi_idx(jj);
-
      
     %%% perform linear model fit fot T1
     x = pma_t1-40; %%%<--- ref to 40wk (i.e. PMA-40 so intercept is value at 40wk)
-    y = t1m(:,ix);
+    y = t1m(:,jj);
     z = pna_t1; %%% 3rd variable is PNA 
 
     %%% for outliers plot
-    k = t1m_outliers(:,ix);
+    k = t1m_outliers(:,jj);
     x2 = pmas_outliers_t1-40;
     z2 = pnas_outliers_t1;
 
@@ -173,7 +172,7 @@ for jj=1:8 % loop over ROIs
     end
     ylabel('T_1 (ms)')
     legend('off')
-    title(sprintf('%s T_1',newlabs{ix}),'fontsize',11);%
+    title(sprintf('%s T_1',newlabs{jj}),'fontsize',11);%
     set(gca,'XTick',-5:5:10,'XTickLabel',{'35','40','45','50'}); % label as true PMA (not minus 40)
 
     p2{jj}.LineWidth = 1.;
@@ -192,7 +191,7 @@ for jj=1:8 % loop over ROIs
 
     %%% perform linear model fit
     x = pma_t2-40; %%% <--- reference to 40 wks
-    y = t2m(:,ix);
+    y = t2m(:,jj);
     z = pna_t2;
 
     % Remove NaN values
@@ -203,7 +202,7 @@ for jj=1:8 % loop over ROIs
     z(nanIndices)=[];
 
     %%% for outliers plot
-    k = t2cm_outliers(:,ix);
+    k = t2cm_outliers(:,jj);
     x2 = pmas_outliers_t2-40;
     z2 = pnas_outliers_t2;
 
@@ -260,7 +259,7 @@ for jj=1:8 % loop over ROIs
         xlabel('');
     end
     ylabel('T_2 (ms)')
-    title(sprintf('%s T_2',newlabs{ix}),'fontsize',11)
+    title(sprintf('%s T_2',newlabs{jj}),'fontsize',11)
 
     set(gca,'XTick',-5:5:10,'XTickLabel',{'35','40','45','50'});
     %%% remove legend
@@ -320,9 +319,16 @@ for ii=1:8 % ROIs
         cci = lm_single{ii,jj}.coefCI;
         cci = round(cci);
         t1t2_regression_single{ii,1,jj} = sprintf('%d (%d,%d)',round(lm_single{ii,jj}.Coefficients.Estimate(1)),cci(1,1),cci(1,2));
-    
+            
         % coeff for PMA
-        t1t2_regression_single{ii,2,jj} = sprintf('%d (%d,%d)',round(lm_single{ii,jj}.Coefficients.Estimate(2)),cci(2,1),cci(2,2));
+        switch jj
+            case 1 % T1 - round to integer
+                t1t2_regression_single{ii,2,jj} = sprintf('%d (%d,%d)',round(lm_single{ii,jj}.Coefficients.Estimate(2)),cci(2,1),cci(2,2));
+            case 2 % T2 - round to 1dp
+                t1t2_regression_single{ii,2,jj} = sprintf('%1.1f (%1.1f,%1.1f)',(lm_single{ii,jj}.Coefficients.Estimate(2)),cci(2,1),cci(2,2));
+        end
+        
+        
         % p-val
         pval = lm_single{ii,jj}.Coefficients.pValue(2);
         if pval < 0.001
@@ -349,13 +355,19 @@ t1t2_regression = {};
 for ii=1:8 % ROIs
     for jj=1:2 % T1 or T2
         
-        %%% T1 values
+        %%% intercept value
         cci = lm_multiple{ii,jj}.coefCI;
         cci = round(cci);
         t1t2_regression{ii,1,jj} = sprintf('%d (%d,%d)',round(lm_multiple{ii,jj}.Coefficients.Estimate(1)),cci(1,1),cci(1,2));
-    
+   
         % coeff for PMA
-        t1t2_regression{ii,2,jj} = sprintf('%d (%d,%d)',round(lm_multiple{ii,jj}.Coefficients.Estimate(2)),cci(2,1),cci(2,2));
+        switch jj
+            case 1 % T1 - round to integer
+                t1t2_regression{ii,2,jj} = sprintf('%d (%d,%d)',round(lm_multiple{ii,jj}.Coefficients.Estimate(2)),cci(2,1),cci(2,2));
+            case 2 % T2 - round to 1dp
+                t1t2_regression{ii,2,jj} = sprintf('%1.1f (%1.1f,%1.1f)',(lm_multiple{ii,jj}.Coefficients.Estimate(2)),cci(2,1),cci(2,2));
+        end
+
         % p-val
         pval = lm_multiple{ii,jj}.Coefficients.pValue(2);
         if pval < 0.001
@@ -364,8 +376,16 @@ for ii=1:8 % ROIs
             t1t2_regression{ii,3,jj} = sprintf('%1.3f',pval);
         end
 
-        % coeff for GA
-        t1t2_regression{ii,4,jj} = sprintf('%d (%d,%d)',round(lm_multiple{ii,jj}.Coefficients.Estimate(3)),cci(3,1),cci(3,2));
+        % coeff for PMA
+        switch jj
+            case 1 % T1 - round to integer
+                t1t2_regression{ii,4,jj} = sprintf('%d (%d,%d)',round(lm_multiple{ii,jj}.Coefficients.Estimate(3)),cci(3,1),cci(3,2));
+            case 2 % T2 - round to 1dp
+                t1t2_regression{ii,4,jj} = sprintf('%1.1f (%1.1f,%1.1f)',(lm_multiple{ii,jj}.Coefficients.Estimate(3)),cci(3,1),cci(3,2));
+        end
+        
+        
+        
         % p-val
         pval = lm_multiple{ii,jj}.Coefficients.pValue(3);
         if pval < 0.001
