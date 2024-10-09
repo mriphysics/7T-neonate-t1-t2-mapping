@@ -1,5 +1,7 @@
-data/*
-outputs/*
+# data/*
+# outputs/*
 *.asv
 *.png
 *.mat
+*.xls*
+*.gz
