@@ -6,7 +6,7 @@
 %%% and excluding T1 in the lookup.
 %%% Shaihan Malik, King's College London, 2024
 
-
+addpath('lib');
 %%% Load in raw simulated data
 % S is a 4D matrix with dimensions nb1 x nt2 x nt1 x nechoes
 load data/S_isochromat_20230629.mat

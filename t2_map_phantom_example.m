@@ -52,6 +52,7 @@ end
 
 
 %%% Now exponential fit on 2D maps.
+[nx ny] = size(mask2d);
 t2fit2d = zeros([nx ny]);
 s0map2d = zeros([nx ny]);
 res2map2d=zeros([nx ny]);
@@ -85,7 +86,7 @@ end
 save('outputs/t2fitresults.mat','t2fit2d','t2fit3d','s0map2d','s0map3d','res2map2d','res2map3d');
 else
 
-    %%% load in fits
+   %%% load in fits
    load outputs/t2fitresults.mat
 end
 
@@ -131,8 +132,13 @@ for ii=1:nx
 
 end
 
-%% New figure with dictionary match result
 
+
+%% Figure including B1 map
+
+%%% Color maps
+cmapt2 = colorcet('L9');
+cmapb1 = colormap("parula");
 
 %%% pad the 3D result with zeroes so it looks the same size as the 3D
 %%% result
@@ -146,39 +152,56 @@ w2 = [40 200];
 
 nr = 2;
 nc = 3;
-fs = 11;
+fs = 14;
 fs2 = 11;
 
 figfp(2)
 subplot(nr,nc,1)
 h1 = imsjm(t2fit3dp.*mask3dp,w1);
 h1.AlphaData=mask3dp;
-
-title('T_2 3D Spin Echo','fontsize',fs)
+colormap(gca,cmapt2);
+tl1=title('T_2 3D Spin Echo','fontsize',fs);
 axis off
+tl1.Position = tl1.Position + [0 8 0];
 
 subplot(nr,nc,2)
 h2 = imsjm(t2fit2d,w2);
 h2.AlphaData=mask2d;
+colormap(gca,cmapt2);
 
-title('T_2 2D exponential fit','fontsize',fs)
+tl1=title('T_2 2D exponential fit','fontsize',fs);
 axis off
-
+tl1.Position = tl1.Position + [0 18 0];
 
 subplot(nr,nc,3)
 h3 = imsjm(t2mapd,w1);
 h3.AlphaData=mask2d;
+colormap(gca,cmapt2);
 
-title('T_2 dictionary recon','fontsize',fs)
+tl1=title('T_2 dictionary recon','fontsize',fs);
 axis off
+tl1.Position = tl1.Position + [0 18 0];
 
 cc = colorbar;
 cc.FontSize = fs;
-cmap = colorcet('L9');
-colormap(cmap)
+
+
+%%% B1 map
+subplot(nr,nc,4)
+h4 = imsjm(b1map,[0.4 1.3]);
+h4.AlphaData=mask2d;
+
+tl1=title('B_1^{rel}','fontsize',fs);
+axis off
+colormap(gca,cmapb1);
+tl1.Position = tl1.Position + [0 25 0];
+cc2 = colorbar;
+cc2.FontSize = fs;
+cc2.Location = "southoutside";
+
 
 %%% ROI analysis
-subplot(nr,nc,4:6)
+subplot(nr,nc,5:6)
 hold on
 nbin=64;
 w3 = [40 200];
@@ -191,7 +214,7 @@ xlabel('T_2 measurement')
 ylabel('fraction of pixels')
 set(gca,'FontSize',fs2)
 
-gg = get(gcf,'Children');
+gg = getAxesChildren(gcf);
 ww=700;
 hh=450;
 setpospap([200 200 ww hh])
@@ -199,16 +222,18 @@ setpospap([200 200 ww hh])
 aspectratio = nx/ny;
 hhh=0.42;
 
-% hhh*hh/(www*ww) = aspectratio
+%%% hhh*hh/(www*ww) = aspectratio
 www = (hhh*hh)/aspectratio/ww;
-gg(6).Position = [0.01 0.5 www hhh];
-gg(5).Position = [0.31 0.5 www hhh];
-gg(4).Position = [0.61 0.5 www hhh];
-gg(2).Position = gg(2).Position + [0 0.02 0 0];
+gg(8).Position = [0.01 0.55 www hhh];
+gg(7).Position = [0.31 0.55 www hhh];
+gg(6).Position = [0.61 0.55 www hhh];
+gg(4).Position = [0.02 0.12 www hhh];
+gg(2).Position = gg(2).Position + [0.02 0.02 0 0];
 
-print -dpng -r300 outputs/SuppInfo_S4.png
-
-
+cc.Position = [0.91 0.6 0.015 0.2];
+cc2.Position = [0.1 0.1 0.2*hh/ww 0.015*ww/hh];
+cc2.Ticks = [0.4:0.4:1.2];
+print -dpng -r300 outputs/t2phantom.png
 
 %% print out stats:
 

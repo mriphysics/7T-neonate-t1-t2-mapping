@@ -5,7 +5,8 @@
 %%% Shaihan Malik & Aiman Mahmoud, King's College London, 2024
 
 %% Load in data structure
-load data/analysis_v2_1voxel.mat
+addpath('lib');
+load data/analysis_v2_2.mat
 
 %% T1 maps
 
@@ -187,7 +188,7 @@ print -dpng -r300 outputs/t2_data_montage.png
 
 %% ROIS
 
-new_rois = new_rois_t1;
+% new_rois = new_rois_t1;
 
 sub_n = (1:length(pmas))';
 

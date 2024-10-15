@@ -7,7 +7,7 @@ addpath('lib');
 load data/neonate_data_example.mat
 
 %%% Flag to either compute the maps, or load from data
-saveresults = 1; % 0 - don't calculate, 1 - calculate and save
+saveresults = 0; % 0 - don't calculate, 1 - calculate and save
 
 %%% mask for fitting
 mask = imt2(:,:,1)>100;
@@ -59,7 +59,7 @@ for ii=1:nx
             % guess at T1
             [~,mti]=min(data);
             t1guess = ti(mti)/log(2);
-            xmin = fmincon(cf,[data(end) t1guess 0.],[],[],[],[],[0 0 0],[data(end)*1.3 6000 0.2],[],opt);
+            xmin = fmincon(cf,[data(end) t1guess 0.],[],[],[],[],[0 0 0],[data(end)*1.3 6000 0.5],[],opt);
 
             m0map(ii,jj)=xmin(1);
             t1map(ii,jj)=xmin(2);
@@ -135,131 +135,6 @@ else
 end
 
 
-
-%% Voxel-wise fitting
-
-%%% skip some echoes
-echo_filter = [1 1 1 1 1 1 1 1];
-
-% Display one of the images, and then allow the user to click on one pixel
-figure(10);clf
-set(gcf,'Visible','on')
-subplot(2,1,1)
-imagesc(sum(imt1,3));colormap gray
-title('Click to select a voxel')
-
-%% Now make some images
-
-figfp(10)
-
-nr=2;nc=2;
-
-subplot(nr,nc,1)
-imsjm(m0map,'rot',0)
-colormap(gca,'gray')
-title('S_0 image','FontSize',20)
-
-subplot(nr,nc,2)
-imsjm(t1map,[1500 4000],'rot',0)
-colorbar
-colormap(gca,'inferno')
-c1=colorbar;
-c1.Location="southoutside";
-title('T_1 (ms)','FontSize',20)
-c1.Position = [0.63 0.52 0.2500 0.0200];
-c1.FontSize=13;
-
-subplot(nr,nc,3)
-imsjm(abs(iemap),[0 0.3],'rot',0)
-colormap(gca,'parula')
-c2=colorbar;
-c2.Location="southoutside";
-title('\epsilon','FontSize',30)
-c2.Position = [0.12 0.05 0.25 0.02];
-c2.FontSize=13;
-
-subplot(nr,nc,4)
-imsjm(100*sqrt(res1map./sum(imt1.^2,3)),[0 15])
-colormap(gca,'gray')
-title('residuals','FontSize',20)
-c3=colorbar;
-c3.Location="southoutside";
-title('residuals (%)','FontSize',20)
-c3.Position = [0.63 0.05 0.25 0.02];
-c3.FontSize=13;
-
-
-spsjm('bgap',0.1,'tgap',0.1,'gap',[0.01 0.1])
-
-setpospap([100 1 500 796])
-
-% print -dpng -r300 T1map.png
-
-
-
-%% T1 and T2 maps combined
-
-figfp(1)
-
-nr=1;nc=2;
-
-subplot(nr,nc,1)
-imsjm(t1map,[1600 4000],'rot',0)
-colorbar
-colormap(gca,'inferno')
-c1=colorbar;
-c1.Location="southoutside";
-title('T_1 (ms)','FontSize',20)
-c1.Position = [0.12 0.05 0.25 0.03];
-c1.FontSize=13;
-
-subplot(nr,nc,2)
-imsjm(t2map,[50 270],'rot',0)
-colorbar
-colormap(gca,'viridis')
-c1=colorbar;
-c1.Location="southoutside";
-title('T_2 (ms)','FontSize',20)
-c1.Position = [0.62 0.05 0.25 0.03];
-c1.FontSize=13;
-
-
-
-spsjm('bgap',0.1,'tgap',0.1)
-
-setpospap([100 100 650 400])
-
-print -dpng -r300 t1_t2_neo.png
-
-
-%% Include a T1 corrected dictionary lookup
-%%% Get B1
-nii = niftiread('afi_resampled.nii.gz');
-b1map = double(nii) / 600;
-b1map = imrotate(b1map,90); 
-
-%%% get dict
-load dict_incT1_20230629.mat
-load t1map_sept24.mat
-%%% perform fit
-
-t2mapdt1 = zeros([nx ny]);
-s0mapdt1 = zeros([nx ny]);
-
-for ii=1:nx
-    for jj=1:ny
-        if mask(ii,jj)
-
-            data = squeeze(imt2(ii,jj,:));
-            
-            [t2tmp,s0tmp] = dict_match_inct1(data,b1map(ii,jj),t1map(ii,jj),dict);
-
-            s0mapdt1(ii,jj)=s0tmp;
-            t2mapdt1(ii,jj)=t2tmp;
-        end
-    end
-
-end
 
 %% T1 map figure
 
@@ -386,3 +261,6 @@ ac = text(10,125,'(c)','fontsize',26,'FontWeight','bold');
 print -dpng -r300 outputs/T2map_neonate_figure.png
 
 
+%% work out discrepancy between t2 estiamtes in brain
+mask_brain = imt1(:,:,1)>300; % approximate brain mask
+err = (t2mapd(mask_brain)-t2mapdt1(mask_brain));

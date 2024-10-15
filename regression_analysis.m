@@ -3,9 +3,15 @@
 %%% datasets but not all contain T1 and T2 mapping (so are empty) and it
 %%% also contains 13 tissue labels, though we only consider 8 of these.
 %%% 2024-10-08: Shaihan Malik & Aiman Mahmoud, King's College London
+addpath('lib');
 
 %%% Load in mat file containing the data
-load data/analysis_v2_1voxel.mat
+% load data/analysis_v2_1voxel.mat
+load data/analysis_v2_2.mat
+
+%%% rois for T1 and T2 are the same, but include possibility of different masks
+new_rois_t1 = new_rois;
+new_rois_t2 = new_rois;
 
 %%% Define labels for the ROIs we are interested in
 all_labs = {'Cortical GM','White Matter','Lateral Ventricle',...
@@ -46,10 +52,9 @@ figfp(1)
 
 %%% Build samples for plotting. T1 first.
 t1m = t1m_all;
-% These 4 scans are not included in regression
-reject_subjects = [1 3 5 33];
-t1_rejection = reject_subjects;
-t2_rejection = reject_subjects;
+% These scans are not included in regression
+t1_rejection = [1 3 5 33];
+t2_rejection = [1 3 5 33 49]; % additionally exclude 49 because of severe motion artefacts
 
 %%% Remove the rejected subjects from variable used in linear regression
 t1m(t1_rejection,:) = []; 
@@ -89,6 +94,9 @@ pnas_outliers_t2 = pmas(t2_rejection)-gabs(t2_rejection);
 %%% do two regression analyses - single and multiple linear regression
 lm_single = {};
 lm_multiple = {}; %<-- for linear models including PNA
+
+%%% save the predicted CIs for plotting
+ci = {};
 
 %%% params
 mrkrsz = 30; % scatter plot marker size
@@ -140,7 +148,8 @@ for jj=1:8 % loop over ROIs
     % get confidence interval (functional, nonsimultaneous)
     % https://uk.mathworks.com/help/curvefit/confidence-and-prediction-bounds.html
     p21 = predint(fr,xv,0.95,'functional','off');
-    
+    ci{jj,1} = p21; % save this for later
+
     %%% Colours for scatter plot
     cols = interp1(linspace(pna_min,pna_max,256), cmap, z, 'linear');
     cols2 = interp1(linspace(pna_min,pna_max,256), cmap, z2, 'linear');
@@ -220,6 +229,7 @@ for jj=1:8 % loop over ROIs
     % get confidence interval (functional, nonsimultaneous)
     % https://uk.mathworks.com/help/curvefit/confidence-and-prediction-bounds.html
     p21 = predint(fr,xv,0.95,'functional','off');
+    ci{jj,2} = p21;
 
     %%% interpolate colors
     cols = interp1(linspace(pna_min, pna_max,256), cmap, z, 'linear');
@@ -272,7 +282,7 @@ end
 
 setpospap([163 1050 800 750])
 %%%
-gg = get(gcf,'Children');
+gg = getAxesChildren(gcf);
 
 %%% move the T2 plots down a bit and left
 for ii=1:2:16
@@ -337,7 +347,7 @@ for ii=1:8 % ROIs
             t1t2_regression_single{ii,3,jj} = sprintf('%1.3f',pval);
         end
 
-        % Adjusted Rsquared
+        %  Rsquared
         t1t2_regression_single{ii,4,jj} = sprintf('%1.2f',lm_single{ii,jj}.Rsquared.Ordinary);
 
     end
@@ -403,3 +413,106 @@ end
 
 writecell(t1t2_regression(:,:,1),'outputs/regression_multiple.xlsx','Sheet','T1')
 writecell(t1t2_regression(:,:,2),'outputs/regression_multiple.xlsx','Sheet','T2')
+
+
+%% Repeat scans analysis
+
+%%%% indices of repeats
+idx_rep = [[7 18];[13 14];[20 27];[21 28];[25 26];[50 51]];
+pma_rep = pmas(idx_rep);
+t1rep = cat(3,t1m_all(idx_rep(:,1),:),t1m_all(idx_rep(:,2),:));
+t2rep = cat(3,t2m_all(idx_rep(:,1),:),t2m_all(idx_rep(:,2),:));
+
+%%% colors for lines to make consistent
+clabels = colormap(lines);
+
+figfp(1);
+for ii=1:8
+    subplot(4,4,ii)
+
+    %%% first plot the CI for the trend
+    hold on
+    xv = linspace(-7,13, 150)+40;
+    p21 = ci{ii,1};
+    patch([xv fliplr(xv)], [p21(:,1);flip(p21(:,2),1)], zeros(300,1), ...
+        'FaceColor',[0.7 0.7 0.7],'FaceAlpha',0.5, 'EdgeColor','none')
+    ylim([1600 3800])
+    xlim([34 53])
+    grid on
+
+    %%% now plot the pairwise data
+    p1=plot(pma_rep',squeeze(t1rep(:,ii,:))','^-');
+    for jj=1:6,
+        p1(jj).MarkerFaceColor = clabels(jj,:);
+        p1(jj).MarkerEdgeColor = [0 0 0];
+    end
+
+
+    title(sprintf('%s T_1',newlabs{ii}),'fontsize',11)
+    ylabel('T_1 (ms)')
+    if ii>4
+        xlabel('PMA (weeks)');% only x-axis for lower plots
+    else
+        xlabel('');
+    end
+
+    %%% repeat for T2 maps
+    subplot(4,4,ii+8)
+    p1=plot(pma_rep',squeeze(t2rep(:,ii,:))','^-');
+    for jj=1:6,p1(jj).MarkerFaceColor = p1(jj).Color;p1(jj).MarkerEdgeColor = [0 0 0];end
+
+    hold on
+    xv = linspace(-8,5, 150)+40;
+    p21 = ci{ii,2};
+    patch([xv fliplr(xv)], [p21(:,1);flip(p21(:,2),1)], zeros(300,1), ...
+        'FaceColor',[0.7 0.7 0.7],'FaceAlpha',0.5, 'EdgeColor','none')
+
+    p1=plot(pma_rep',squeeze(t2rep(:,ii,:))','^-');
+    for jj=1:6,
+        p1(jj).MarkerFaceColor = clabels(jj,:);
+        p1(jj).MarkerEdgeColor = [0 0 0];
+    end
+    switch ii
+        case {1,2,4,8}
+            ylim([70 200]);
+        case {3,5,6,7}
+            ylim([70 120]);
+    end
+
+    xlim([32 45])
+    grid on
+
+    title(sprintf('%s T_2',newlabs{ii}),'fontsize',11)
+    ylabel('T_2 (ms)')
+    if ii>4
+        xlabel('PMA (weeks)');% only x-axis for lower plots
+    else
+        xlabel('');
+    end
+end
+
+
+%%%
+setpospap([100 100 900 600])
+gg = get(gcf,'Children');
+
+%%% move the T2 plots down a bit and left
+for ii=1:2:16
+    pos = gg(ii).Position;
+    pos(2) = pos(2) - 0.04;
+    pos(1) = pos(1) - 0.04;
+    gg(ii).Position = pos;
+end
+
+%%% move the T1 plots up a bit and left
+for ii=2:2:16
+    pos = gg(ii).Position;
+    pos(2) = pos(2) + 0.03;
+    pos(1) = pos(1) - 0.04;
+    gg(ii).Position = pos;
+end
+
+print -dpng -r300 outputs/t1_t2_repeat_measures.png
+
+
+

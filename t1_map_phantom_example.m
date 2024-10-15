@@ -4,7 +4,16 @@
 %%% Author: Shaihan Malik, King's College London
 
 %% T1 map reconstruction
-load data/t1data.mat
+addpath('lib');
+
+%%% flag for which T1 map data to use
+high_voltage = 1; % 1 => high voltage adiabatic pulse, 0 = reduced voltage
+
+if high_voltage
+    load data/t1data_highV.mat
+else
+    load data/t1data.mat
+end
 [nx ny ni] = size(imt1);
 
 saveresults = 0;  % if 1 this runs optimization, if 0 it loads stored results
@@ -67,6 +76,8 @@ for IX = 1:2 % 1=with IE and 2=without IE
 
                 data = squeeze(imt1(ii,jj,:));
 
+                %%% phantom data has some clipping, remove values > 4095
+                echo_filter = abs(data)<4095;
 
                 sig = @(x)(x(1)*abs(1-2*(1-x(3))*exp(-ti(:)/x(2))));
                 cf = @(x)(norm(echo_filter(:).*(data-sig(x)))^2);
@@ -89,10 +100,17 @@ for IX = 1:2 % 1=with IE and 2=without IE
 
 end
 
-save outputs/t1map t1map m0map res1map iemap
-
+if high_voltage
+    save outputs/t1map_highV t1map m0map res1map iemap
 else
-    load outputs/t1map.mat
+    save outputs/t1map t1map m0map res1map iemap
+end
+else
+    if high_voltage
+        load outputs/t1map_highV.mat
+    else
+        load outputs/t1map.mat
+    end
 end
 
 
@@ -166,8 +184,9 @@ grid on
 xlabel('T_1 (ms)')
 title('T_1 histograms')
 legend('With \epsilon','Without \epsilon','location','northwest','fontsize',13)
+xlim([2200 3000])
 
-gg = get(gcf,'children')
+gg = getAxesChildren(gcf);
 %%% 
 
 % add text
@@ -193,4 +212,9 @@ gg(2).Position = [0.62 0.25 0.35 0.5];
 
 setpospap([ 100 100 912 360])
 
-print -dpng -r300 outputs/SuppInfo_S3.png
+if high_voltage
+    print -dpng -r300 outputs/t1phantom_highV.png
+else
+    print -dpng -r300 outputs/t1phantom.png
+end
+
