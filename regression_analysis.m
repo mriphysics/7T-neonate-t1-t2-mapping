@@ -3,15 +3,11 @@
 %%% datasets but not all contain T1 and T2 mapping (so are empty) and it
 %%% also contains 13 tissue labels, though we only consider 8 of these.
 %%% 2024-10-08: Shaihan Malik & Aiman Mahmoud, King's College London
+
 addpath('lib');
 
 %%% Load in mat file containing the data
-% load data/analysis_v2_1voxel.mat
-load data/analysis_v2_2.mat
-
-%%% rois for T1 and T2 are the same, but include possibility of different masks
-new_rois_t1 = new_rois;
-new_rois_t2 = new_rois;
+load data/cohort_data.mat
 
 %%% Define labels for the ROIs we are interested in
 all_labs = {'Cortical GM','White Matter','Lateral Ventricle',...
@@ -57,12 +53,8 @@ t1_rejection = [1 3 5 33];
 t2_rejection = [1 3 5 33 49]; % additionally exclude 49 because of severe motion artefacts
 
 %%% Remove the rejected subjects from variable used in linear regression
-t1m(t1_rejection,:) = []; 
-pma_t1 = pmas;
-pma_t1(t1_rejection,:) = []; 
-% also postnatal age for second regression and colouring of plot
-pna_t1 = pmas - gabs;
-pna_t1(t1_rejection,:) = []; 
+%%% (mark as NaN)
+t1m(t1_rejection,:) = NaN;
 
 %%% Create another variable for plotting of excluded scans
 t1m_outliers = t1m_all(t1_rejection,:);
@@ -73,20 +65,23 @@ pnas_outliers_t1 = pmas(t1_rejection)-gabs(t1_rejection);
 %%% Now the same thing but for T2
 t2m = t2m_all;
 
-%%% Remove the rejected ones from linear regression
-t2m(t2_rejection,:) = []; 
-pma_t2 = pmas;
-pma_t2(t2_rejection,:) = []; 
-% also postnatal age for second regression and colouring of plot
-pna_t2 = pmas - gabs;
-pna_t2(t2_rejection,:) = []; 
-
+%%% Remove the rejected ones from linear regression (set as Nan to flag)
+t2m(t2_rejection,:) = NaN; 
 
 %%% Create another variable for plotting of these
 t2cm_outliers = t2m_all(t2_rejection,:);
 pmas_outliers_t2 = pmas(t2_rejection);
 pnas_outliers_t2 = pmas(t2_rejection)-gabs(t2_rejection);
 
+%%% Indices of repeat scans
+idx_rep = [[7 18];[13 14];[20 27];[21 28];[25 26];[50 51]];
+
+%%% create unique patient ID
+patid = 1:length(pmas);
+patid(idx_rep(:,2)) = idx_rep(:,1);
+
+%%% variable to save data 
+plot_data = {};
 
 %%% ===================================
 %%% Perform regressions and create scatter plots all within this loop.
@@ -116,9 +111,10 @@ out_color = [0 0.7 0];
 for jj=1:8 % loop over ROIs
      
     %%% perform linear model fit fot T1
-    x = pma_t1-40; %%%<--- ref to 40wk (i.e. PMA-40 so intercept is value at 40wk)
+    x = pmas-40; %%%<--- ref to 40wk (i.e. PMA-40 so intercept is value at 40wk)
     y = t1m(:,jj);
-    z = pna_t1; %%% 3rd variable is PNA 
+    z = pmas - gabs; %%% 3rd variable is PNA 
+    id = patid(:);
 
     %%% for outliers plot
     k = t1m_outliers(:,jj);
@@ -132,6 +128,9 @@ for jj=1:8 % loop over ROIs
     x(nanIndices)=[];
     y(nanIndices)=[];
     z(nanIndices)=[];
+    id(nanIndices) = [];
+
+    plot_data{jj,1} = [x y z id];
 
     %%% Fit linear model <--- needed for 'predint' function
     [fr, gof] = fit(x,y,'poly1');
@@ -199,9 +198,10 @@ for jj=1:8 % loop over ROIs
     %%% NOW THE SAME FOR T2
 
     %%% perform linear model fit
-    x = pma_t2-40; %%% <--- reference to 40 wks
+    x = pmas-40; %%% <--- reference to 40 wks
     y = t2m(:,jj);
-    z = pna_t2;
+    z = pmas-gabs;
+    id = patid(:);
 
     % Remove NaN values
     nanIndices={};
@@ -209,6 +209,9 @@ for jj=1:8 % loop over ROIs
     x(nanIndices)=[];
     y(nanIndices)=[];
     z(nanIndices)=[];
+    id(nanIndices)=[];
+
+    plot_data{jj,2} = [x y z id];
 
     %%% for outliers plot
     k = t2cm_outliers(:,jj);
@@ -303,7 +306,7 @@ end
 % Add a single colorbar to the figure
 cb = colorbar;
 colormap(cmap);
-ylabel(cb, 'Post Natal Age (weeks)');
+ylabel(cb, 'Postnatal Age (PNA, weeks)');
 caxis([pna_min pna_max])
 set(cb, 'Position', [0.91 0.3 0.015 0.4], 'Units', 'normalized');
 cb.FontSize = 12;
@@ -315,9 +318,11 @@ text(-15,1650,'(a)','FontSize',24,'FontWeight','bold')
 axes(gg(7))
 text(-14,68,'(b)','FontSize',24,'FontWeight','bold')
 
+
 print -dpng -r300 outputs/t1_t2_combined.png
 
 %% compile the result of single linear regression
+
 
 %%% put into a cell array
 t1t2_regression_single = {};
@@ -515,4 +520,35 @@ end
 print -dpng -r300 outputs/t1_t2_repeat_measures.png
 
 
+%% Output all data for analysis using linear mixed effect model
 
+for jj=1:8
+    writematrix(plot_data{jj,1},'outputs/LME_data.xlsx','Sheet',sprintf('%s T1',newlabs{jj}))
+    writematrix(plot_data{jj,2},'outputs/LME_data.xlsx','Sheet',sprintf('%s T2',newlabs{jj}))
+end
+
+%% Pull report data back in from txt files produced in python
+
+
+fname = 'data/LME/PVFWM_T2-LME_summary.txt';
+
+opts = detectImportOptions(fname);
+opts.DataLines = [12 13];
+opts.VariableNames = {'type','Coef','StdErr','zscore','pval','0.025','0.975'};
+T = readtable(fname,opts)
+
+lme_results = {};
+
+for jj=1:8
+    % T1 first
+    fname = sprintf('data/LME/%s_T1-LME_summary.txt',strrep(newlabs{jj},' ','_'));
+    opts = detectImportOptions(fname);
+    opts.DataLines = [12 13];
+    opts.VariableNames = {'type','Coef','StdErr','zscore','pval','0.025','0.975'};
+    T = readtable(fname,opts);
+
+    %%% Put this into cell as above
+    lme_results{jj,1,1} = sprintf('%s (%s,%s)',T{1,2}{1});
+
+
+end

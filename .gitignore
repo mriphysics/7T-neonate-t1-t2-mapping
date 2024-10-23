@@ -1,5 +1,5 @@
-# data/*
-# outputs/*
+data/*
+outputs/*
 *.asv
 *.png
 *.mat

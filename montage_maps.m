@@ -6,7 +6,7 @@
 
 %% Load in data structure
 addpath('lib');
-load data/analysis_v2_2.mat
+load data/cohort_data.mat
 
 %% T1 maps
 
@@ -188,15 +188,15 @@ print -dpng -r300 outputs/t2_data_montage.png
 
 %% ROIS
 
-% new_rois = new_rois_t1;
+rois_display = uneroded_rois;
 
 sub_n = (1:length(pmas))';
 
 % Find indices of empty cells in t1dataie
-rois_empty = cellfun(@isempty, new_rois);
-
+rois_empty = cellfun(@isempty, rois_display);
+figure
 % Filter out the empty cells
-rois_filtered = new_rois(~rois_empty);
+rois_filtered = rois_display(~rois_empty);
 sub_n = sub_n(~rois_empty);
 
 % Initialize pma_t1 with pmas values and filter out rows corresponding to empty t1dataie cells
