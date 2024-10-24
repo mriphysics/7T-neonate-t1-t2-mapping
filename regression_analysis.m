@@ -3,6 +3,7 @@
 %%% datasets but not all contain T1 and T2 mapping (so are empty) and it
 %%% also contains 13 tissue labels, though we only consider 8 of these.
 %%% 2024-10-08: Shaihan Malik & Aiman Mahmoud, King's College London
+%%% 2024-10-24: Update to use a mixed effects model
 
 addpath('lib');
 
@@ -90,9 +91,6 @@ plot_data = {};
 lm_single = {};
 lm_multiple = {}; %<-- for linear models including PNA
 
-%%% save the predicted CIs for plotting
-ci = {};
-
 %%% params
 mrkrsz = 30; % scatter plot marker size
 %%% colormap for plotting - use COLORCET function    cmap = colorcet('L6');
@@ -107,6 +105,9 @@ pna_max = 14;
 
 % colour for outlier points
 out_color = [0 0.7 0];
+
+% Variable to save marginal R^2
+Rsq_marg = {};
 
 for jj=1:8 % loop over ROIs
      
@@ -130,24 +131,28 @@ for jj=1:8 % loop over ROIs
     z(nanIndices)=[];
     id(nanIndices) = [];
 
-    plot_data{jj,1} = [x y z id];
 
-    %%% Fit linear model <--- needed for 'predint' function
-    [fr, gof] = fit(x,y,'poly1');
+    %%% Put data into a table
+    data_tab = table(x,y,z,id);
+    data_tab.Properties.VariableNames = {'PMA','T1','PNA','sub_id'};
 
-    % Use fitlm to get comprehensive regression results
-    lm_single{jj,1} = fitlm(x,y);
+    %%% now use fitlme to fit mixed effects models. Do this either for
+    %%% single or multiple regression
+    lm_single{jj,1} = fitlme(data_tab, "T1 ~ PMA + (1|sub_id)", "FitMethod", "REML");
 
     % multiple regression also considers PNA
-    lm_multiple{jj,1} = fitlm([x z],y);
+    lm_multiple{jj,1} = fitlme(data_tab, "T1 ~ PMA + PNA + (1|sub_id)", "FitMethod", "REML");
 
     % x range for confidence intervals
     xv = linspace(-7,13, 150);
 
-    % get confidence interval (functional, nonsimultaneous)
-    % https://uk.mathworks.com/help/curvefit/confidence-and-prediction-bounds.html
-    p21 = predint(fr,xv,0.95,'functional','off');
-    ci{jj,1} = p21; % save this for later
+    % Need to create a dummy table for the 'predict' function
+    tblnew = table();
+    tblnew.PMA = xv';
+    tblnew.PNA = linspace(min(z),max(z), 150)';
+    tblnew.sub_id = ones([150 1]);
+    % now predict the conf intervals and plot value
+    [ypred,yCI,DF] = predict(lm_single{jj,1},tblnew);
 
     %%% Colours for scatter plot
     cols = interp1(linspace(pna_min,pna_max,256), cmap, z, 'linear');
@@ -161,8 +166,8 @@ for jj=1:8 % loop over ROIs
 
     subplot(4,4,jj)
     hold on
-    patch([xv fliplr(xv)], [p21(:,1);flip(p21(:,2),1)], zeros(300,1),'FaceColor',[0.7 0.7 0.7],'FaceAlpha',0.5, 'EdgeColor','none')
-    p2{jj} = plot(xv,fr.p2+fr.p1*xv);
+    patch([xv fliplr(xv)], [yCI(:,1);flip(yCI(:,2),1)], zeros(300,1),'FaceColor',[0.7 0.7 0.7],'FaceAlpha',0.5, 'EdgeColor','none')
+    p2{jj} = plot(xv,ypred);
     ss = scatter(x, y,mrkrsz,cols,'filled');
     set(ss,'MarkerEdgeColor',[0 0 0],'LineWidth',0.5);
 
@@ -187,12 +192,14 @@ for jj=1:8 % loop over ROIs
     p2{jj}.Color = [0 0. 0.];
     ss.MarkerEdgeColor=[0 0 0];
 
+    %%% Compute the marginal Rsquared
+    Rsq_marg{jj,1} = 1-var(residuals(lm_single{jj,1},'Condition',0))/var(data_tab.T1);
 
     % add text
     if jj<8
-        tt = text(40-40,3500,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,1}.NumObservations,lm_single{jj,1}.Rsquared.Ordinary),'color',[0 0 1]);
+        tt = text(40-40,3500,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,1}.NumObservations,Rsq_marg{jj,1}),'color',[0 0 1]);
     else
-        tt = text(40-40,2000,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,1}.NumObservations,lm_single{jj,1}.Rsquared.Ordinary),'color',[0 0 1]);
+        tt = text(40-40,2000,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,1}.NumObservations,Rsq_marg{jj,1}),'color',[0 0 1]);
     end
   
     %%% NOW THE SAME FOR T2
@@ -211,28 +218,32 @@ for jj=1:8 % loop over ROIs
     z(nanIndices)=[];
     id(nanIndices)=[];
 
-    plot_data{jj,2} = [x y z id];
-
     %%% for outliers plot
     k = t2cm_outliers(:,jj);
     x2 = pmas_outliers_t2-40;
     z2 = pnas_outliers_t2;
 
-    %%% Fit linear model
-    [fr, gof] = fit(x,y,'poly1');
+    %%% Put data into a table
+    data_tab = table(x,y,z,id);
+    data_tab.Properties.VariableNames = {'PMA','T2','PNA','sub_id'};
 
-   % also use fitlm to get full regression
-    lm_single{jj,2} = fitlm(x,y);
+    %%% now use fitlme to fit mixed effects models. Do this either for
+    %%% single or multiple regression
+    lm_single{jj,2} = fitlme(data_tab, "T2 ~ PMA + (1|sub_id)", "FitMethod", "REML");
 
-    % multiple regression includes PNA
-    lm_multiple{jj,2} = fitlm([x z],y);
+    % multiple regression also considers PNA
+    lm_multiple{jj,2} = fitlme(data_tab, "T2 ~ PMA + PNA + (1|sub_id)", "FitMethod", "REML");
 
-    % Range for confidence intervals
+    % x range for confidence intervals
     xv = linspace(-8,5, 150);
-    % get confidence interval (functional, nonsimultaneous)
-    % https://uk.mathworks.com/help/curvefit/confidence-and-prediction-bounds.html
-    p21 = predint(fr,xv,0.95,'functional','off');
-    ci{jj,2} = p21;
+
+    % Need to create a dummy table for the 'predict' function
+    tblnew = table();
+    tblnew.PMA = xv';
+    tblnew.PNA = linspace(min(z),max(z), 150)';
+    tblnew.sub_id = ones([150 1]);
+    % now predict the conf intervals and plot value
+    [ypred,yCI,DF] = predict(lm_single{jj,2},tblnew);
 
     %%% interpolate colors
     cols = interp1(linspace(pna_min, pna_max,256), cmap, z, 'linear');
@@ -245,8 +256,8 @@ for jj=1:8 % loop over ROIs
 
     subplot(4,4,jj+8)
     hold on
-    patch([xv fliplr(xv)], [p21(:,1);flip(p21(:,2),1)], zeros(300,1),'FaceColor',[0.7 0.7 0.7],'FaceAlpha',0.5, 'EdgeColor','none')
-    p2{jj} = plot(xv,fr.p2+fr.p1*xv);
+    patch([xv fliplr(xv)], [yCI(:,1);flip(yCI(:,2),1)], zeros(300,1),'FaceColor',[0.7 0.7 0.7],'FaceAlpha',0.5, 'EdgeColor','none')
+    p2{jj} = plot(xv,ypred);
     ss = scatter(x, y,mrkrsz,cols,'filled');
     set(ss,'MarkerEdgeColor',[0 0 0],'LineWidth',0.5);
 
@@ -257,14 +268,18 @@ for jj=1:8 % loop over ROIs
     grid on
     xlim([32 45]-40)
 
+    %%% Compute the marginal Rsquared
+    Rsq_marg{jj,2} = 1-var(residuals(lm_single{jj,2},'Condition',0))/var(data_tab.T2);
+
+
     %%% use two different y-limits
     switch jj
         case {1,2,4,8}
             ylim([70 200]);
-            tt = text(35-40,190,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,2}.NumObservations,lm_single{jj,2}.Rsquared.Ordinary),'color',[0 0 1]);
+            tt = text(35-40,190,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,2}.NumObservations,Rsq_marg{jj,2}),'color',[0 0 1]);
         case {3,5,6,7}
             ylim([70 120]);
-            tt = text(35-40,115,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,2}.NumObservations,lm_single{jj,2}.Rsquared.Ordinary),'color',[0 0 1]);
+            tt = text(35-40,115,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,2}.NumObservations,Rsq_marg{jj,2}),'color',[0 0 1]);
     end
     if jj>4
         xlabel('PMA (weeks)');% only x-axis for lower plots
@@ -353,7 +368,7 @@ for ii=1:8 % ROIs
         end
 
         %  Rsquared
-        t1t2_regression_single{ii,4,jj} = sprintf('%1.2f',lm_single{ii,jj}.Rsquared.Ordinary);
+        t1t2_regression_single{ii,4,jj} = sprintf('%1.2f',Rsq_marg{ii,jj});
 
     end
 end
@@ -409,10 +424,8 @@ for ii=1:8 % ROIs
             t1t2_regression{ii,5,jj} = sprintf('%1.3f',pval);
         end
 
-        % Adjusted Rsquared
-        t1t2_regression{ii,6,jj} = sprintf('%1.2f',lm_multiple{ii,jj}.Rsquared.Adjusted);
-
-
+        % Compute the marginal Rsquared for this
+        t1t2_regression_single{ii,4,jj} = 1-var(residuals(lm_multiple{ii,jj},'Condition',0))/var(lm_multiple{ii,jj}.response);
     end
 end
 
@@ -420,135 +433,3 @@ writecell(t1t2_regression(:,:,1),'outputs/regression_multiple.xlsx','Sheet','T1'
 writecell(t1t2_regression(:,:,2),'outputs/regression_multiple.xlsx','Sheet','T2')
 
 
-%% Repeat scans analysis
-
-%%%% indices of repeats
-idx_rep = [[7 18];[13 14];[20 27];[21 28];[25 26];[50 51]];
-pma_rep = pmas(idx_rep);
-t1rep = cat(3,t1m_all(idx_rep(:,1),:),t1m_all(idx_rep(:,2),:));
-t2rep = cat(3,t2m_all(idx_rep(:,1),:),t2m_all(idx_rep(:,2),:));
-
-%%% colors for lines to make consistent
-clabels = colormap(lines);
-
-figfp(1);
-for ii=1:8
-    subplot(4,4,ii)
-
-    %%% first plot the CI for the trend
-    hold on
-    xv = linspace(-7,13, 150)+40;
-    p21 = ci{ii,1};
-    patch([xv fliplr(xv)], [p21(:,1);flip(p21(:,2),1)], zeros(300,1), ...
-        'FaceColor',[0.7 0.7 0.7],'FaceAlpha',0.5, 'EdgeColor','none')
-    ylim([1600 3800])
-    xlim([34 53])
-    grid on
-
-    %%% now plot the pairwise data
-    p1=plot(pma_rep',squeeze(t1rep(:,ii,:))','^-');
-    for jj=1:6,
-        p1(jj).MarkerFaceColor = clabels(jj,:);
-        p1(jj).MarkerEdgeColor = [0 0 0];
-    end
-
-
-    title(sprintf('%s T_1',newlabs{ii}),'fontsize',11)
-    ylabel('T_1 (ms)')
-    if ii>4
-        xlabel('PMA (weeks)');% only x-axis for lower plots
-    else
-        xlabel('');
-    end
-
-    %%% repeat for T2 maps
-    subplot(4,4,ii+8)
-    p1=plot(pma_rep',squeeze(t2rep(:,ii,:))','^-');
-    for jj=1:6,p1(jj).MarkerFaceColor = p1(jj).Color;p1(jj).MarkerEdgeColor = [0 0 0];end
-
-    hold on
-    xv = linspace(-8,5, 150)+40;
-    p21 = ci{ii,2};
-    patch([xv fliplr(xv)], [p21(:,1);flip(p21(:,2),1)], zeros(300,1), ...
-        'FaceColor',[0.7 0.7 0.7],'FaceAlpha',0.5, 'EdgeColor','none')
-
-    p1=plot(pma_rep',squeeze(t2rep(:,ii,:))','^-');
-    for jj=1:6,
-        p1(jj).MarkerFaceColor = clabels(jj,:);
-        p1(jj).MarkerEdgeColor = [0 0 0];
-    end
-    switch ii
-        case {1,2,4,8}
-            ylim([70 200]);
-        case {3,5,6,7}
-            ylim([70 120]);
-    end
-
-    xlim([32 45])
-    grid on
-
-    title(sprintf('%s T_2',newlabs{ii}),'fontsize',11)
-    ylabel('T_2 (ms)')
-    if ii>4
-        xlabel('PMA (weeks)');% only x-axis for lower plots
-    else
-        xlabel('');
-    end
-end
-
-
-%%%
-setpospap([100 100 900 600])
-gg = get(gcf,'Children');
-
-%%% move the T2 plots down a bit and left
-for ii=1:2:16
-    pos = gg(ii).Position;
-    pos(2) = pos(2) - 0.04;
-    pos(1) = pos(1) - 0.04;
-    gg(ii).Position = pos;
-end
-
-%%% move the T1 plots up a bit and left
-for ii=2:2:16
-    pos = gg(ii).Position;
-    pos(2) = pos(2) + 0.03;
-    pos(1) = pos(1) - 0.04;
-    gg(ii).Position = pos;
-end
-
-print -dpng -r300 outputs/t1_t2_repeat_measures.png
-
-
-%% Output all data for analysis using linear mixed effect model
-
-for jj=1:8
-    writematrix(plot_data{jj,1},'outputs/LME_data.xlsx','Sheet',sprintf('%s T1',newlabs{jj}))
-    writematrix(plot_data{jj,2},'outputs/LME_data.xlsx','Sheet',sprintf('%s T2',newlabs{jj}))
-end
-
-%% Pull report data back in from txt files produced in python
-
-
-fname = 'data/LME/PVFWM_T2-LME_summary.txt';
-
-opts = detectImportOptions(fname);
-opts.DataLines = [12 13];
-opts.VariableNames = {'type','Coef','StdErr','zscore','pval','0.025','0.975'};
-T = readtable(fname,opts)
-
-lme_results = {};
-
-for jj=1:8
-    % T1 first
-    fname = sprintf('data/LME/%s_T1-LME_summary.txt',strrep(newlabs{jj},' ','_'));
-    opts = detectImportOptions(fname);
-    opts.DataLines = [12 13];
-    opts.VariableNames = {'type','Coef','StdErr','zscore','pval','0.025','0.975'};
-    T = readtable(fname,opts);
-
-    %%% Put this into cell as above
-    lme_results{jj,1,1} = sprintf('%s (%s,%s)',T{1,2}{1});
-
-
-end
