@@ -197,9 +197,11 @@ for jj=1:8 % loop over ROIs
 
     % add text
     if jj<8
-        tt = text(40-40,3500,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,1}.NumObservations,Rsq_marg{jj,1}),'color',[0 0 1]);
+        %tt = text(40-40,3500,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,1}.NumObservations,Rsq_marg{jj,1}),'color',[0 0 1]);
+        tt = text(45-40,3500,sprintf('N=%d',lm_single{jj,1}.NumObservations),'color',[0 0 1]);
     else
-        tt = text(40-40,2000,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,1}.NumObservations,Rsq_marg{jj,1}),'color',[0 0 1]);
+        %tt = text(40-40,2000,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,1}.NumObservations,Rsq_marg{jj,1}),'color',[0 0 1]);
+        tt = text(45-40,2000,sprintf('N=%d',lm_single{jj,1}.NumObservations),'color',[0 0 1]);
     end
   
     %%% NOW THE SAME FOR T2
@@ -276,10 +278,12 @@ for jj=1:8 % loop over ROIs
     switch jj
         case {1,2,4,8}
             ylim([70 200]);
-            tt = text(35-40,190,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,2}.NumObservations,Rsq_marg{jj,2}),'color',[0 0 1]);
+            %tt = text(35-40,190,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,2}.NumObservations,Rsq_marg{jj,2}),'color',[0 0 1]);
+            tt = text(42-40,190,sprintf('N=%d',lm_single{jj,2}.NumObservations),'color',[0 0 1]);
         case {3,5,6,7}
             ylim([70 120]);
-            tt = text(35-40,115,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,2}.NumObservations,Rsq_marg{jj,2}),'color',[0 0 1]);
+            %tt = text(35-40,115,sprintf('N=%d;\tR^2=%1.2f',lm_single{jj,2}.NumObservations,Rsq_marg{jj,2}),'color',[0 0 1]);
+            tt = text(42-40,115,sprintf('N=%d',lm_single{jj,2}.NumObservations),'color',[0 0 1]);
     end
     if jj>4
         xlabel('PMA (weeks)');% only x-axis for lower plots
