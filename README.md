@@ -1,6 +1,6 @@
 # 7T-neonate-t1-t2-mapping
 
-<img title="" alt="example T1 and T2 maps" src="front_page_image.jpg">
+<img title="" alt="example T1 and T2 maps" src="front_page_image.jpg" width=70%>
 
 Reconstruction of T1 &amp; T2 maps plus analysis code for 7T neonatal quantitative MRI project. This code accompanies a paper submitted to Magnetic Resonance in Medicine, a link will be posted here if/when it is published.
 
