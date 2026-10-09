@@ -23,7 +23,7 @@ This repository contains code and data for the following:
 * Statistical analysis for T1 and T2
 
 ### Instructions for use
-The /lib directory contains helper functions. Please also download the data file separately from here (**add link**) and store it in /bin.
+The /lib directory contains helper functions. Please also download the data file separately [here](https://github.com/mriphysics/7T-neonate-t1-t2-mapping/releases/download/v1.0/data.zip) and store it in /bin.
 
 The top level directory contains the following scripts:
 
